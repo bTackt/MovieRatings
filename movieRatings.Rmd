@@ -43,8 +43,8 @@ unique(ratings$rating) #what are the different values in this col?
 length(unique(ratings$userId)) #how many users are represented in this subset?
 
 abbr
-ref <- transform(abbr, id = as.integer(id), popularity = as.numeric(popularity), budget = as.numeric(budget))
-arrange(ref, id)
+ref <- transform(abbr, id = as.integer(id), popularity = as.numeric(popularity), budget = as.numeric(budget), release_date = as.Date(release_date))
+ref<- arrange(ref, id)
 
 apply(ratings, 2, function(x) any(is.na(x))) #find out if there are any nas
 apply(ref, 2, function(x) any(is.na(x)))
@@ -58,12 +58,12 @@ length(unique(ratings$movieId))/nrow(ratings)
 
 So since there are a LOT of duplicates (9066/10004 = 0.09), we will have to deal with the data accordingly. Each movie is voted on an average of 10 times, and with 671 users that means that there is a lot of different movies and some may have a lot of ratings and a lot may have only one.
 
-I'm not quite sure how the popularity column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize and mutate to create a new kind of rating table.
+I'm not quite sure how the popularity column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize to create a new kind of rating table.
 
 ```{r}
 avged <- ratings %>%
   group_by(movieId) %>%
-  summarize(avg_rating = mean(rating)) %>%
+  summarize(avg_rating = mean(rating), rating_count = n()) %>%
   print
 ```
 
@@ -77,20 +77,25 @@ x
 
 This is divided into bins of 0.5 rating, since we kind of made the ratings into a continuous variable by averaging it.
 
-I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together.
+I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together. Looks pretty cool with all the movieIds lined up.
+
+Just to make sure that we're really only looking at movies that enough people are watching and ratings are not skewed because of too few ratings, let's filter out all movies with 7 or less rating_count. (This is actually very effective and important! We go down from 9076 rows to 2592.)
 
 ```{r}
 final <- merge(avged, ref, by.x = "movieId", by.y = "id", all.x = TRUE)
-head(final, 20)
+head(final, 10)
+final <- filter(final, rating_count > 7)
+head(final, 10)
 ```
 
 We take an intermission here to let you randomly select 100 movies to see where they rank, so you can read their titles. I organized their ranking in color so it's easier to parse, and also look at that fancy ggrepel. Sweet. Each time you run this chunk, the 100 movies will be different. It's probably going to be sorrily permanent in knit, though.
 
 ```{r, fig.width = 10, fig.height = 12}
 new <- final
-new$random <- runif(9076)
+len <- nrow(final)
+new$random <- runif(len)
 new$divs <- cut(new$avg_rating, breaks = c(0, 2.5, 3.0, 3.5, 4.0, 4.5, 5))
-n <- ggplot(new[sample.int(9076, 100),], aes(x = avg_rating, y = random, label = title, color = divs)) +
+n <- ggplot(new[sample.int(len, 100),], aes(x = avg_rating, y = random, label = title, color = divs)) +
   geom_point() +
   geom_label_repel(size = 5)
 n
@@ -105,7 +110,7 @@ y
 
 ```
 
-Okay, so it doesn't look like there's much of a correlation between popularity and rating. Also, for some reason, there are a lot of rows with NAs, so those were omitted from the graph. You can also see a lot of movies with assumedly only 1 or 2 ratings averaging out to a perfect multiple of 0.5 rating, so that's why we see those lines up and down at the 0.5 marks for rating.
+Okay, so it doesn't look like there's much of a correlation between popularity and rating. Also, for some reason, there are a few (350) rows with NAs, so those were omitted from the graph.
 
 I'm not quite sure what vote_average means, so let's check that out against avg_rating.
 
@@ -115,14 +120,15 @@ z <- ggplot(final, aes(x = avg_rating, y = vote_average)) +
 z
 ```
 
-Okay, this looks a little more promising. There seems to be a clump towards the middle, with about 3.5 rating and an average of around 6.25. There are apparently a lot of movies with basically 0 vote_average, which makes a line on the bottom.
+Okay, this looks a little more promising. There seems to be a clump towards the middle, with about 3.5 rating and an average of around 6.25. There are apparently a lot of movies with a vote_average of 0, presumably because someone didn't enter any data for that movie, which makes a line on the bottom. They probably should have said NA instead.
 
 Still, there is no clear trend, just a centralization of the data. Let's keep going and see if we can find any interesting trends. Let's try revenue.
 
 
 ```{r}
 a <- ggplot(final, aes(x = avg_rating, y = revenue)) +
-  geom_jitter()
+  geom_jitter() +
+  geom_text(aes(label=ifelse(revenue > 450000000, as.character(title), '')),hjust = 0,vjust = 0)
 a
 ```
 
@@ -134,4 +140,25 @@ b <- ggplot(final, aes(x = popularity, y = revenue)) +
 b
 ```
 
-You know, if not, then okay, man. I wonder if we can find any interesting correlations at all.
+You know, if not, then okay, man. Another problem was that a *lot* of the revenue columns are set to 0 (which I think probably should have been NAs). I wonder if we can find any interesting correlations at all. How about release date? What about just knowing about movies from the 2010s?
+
+```{r}
+recent <- filter(final, release_date > "2010-01-01")
+recent$random <- runif(419)
+
+c <- ggplot(recent, aes(x = avg_rating, y = random)) +
+  geom_point()
+c
+```
+
+Still not very meaningful, but at least we've got less dots. Not sure what attributes we have access to that would help us figure out what makes the best rated movies the best. I guess we can still find out which ones are the best.
+
+```{r}
+top_recent <- filter(recent, avg_rating > 4.0)
+arrange(top_recent, avg_rating)
+top_recent
+```
+
+I'm pretty sure we're missing some important movies here, like Frozen and Star Wars 7, and I think that's because we're not using the full ratings .csv file. But I don't want to overwork RStudio, so we're going to deal with it. Hope this has been interesting.
+
+For future further exploration, I would figure out how to parse movies by genre and graph info based on that. I'm not sure how to find more meaningful conclusions, though. I think I definitely need better questions, and ways to narrow data into smaller, more interesting subsets.
