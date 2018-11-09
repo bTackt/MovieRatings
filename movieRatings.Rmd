@@ -1,0 +1,137 @@
+---
+title: "movieRatings"
+author: "A.S."
+date: "November 1, 2018"
+output: html_document
+---
+
+For Project 2, I will be using The Movies Dataset from Kaggle: https://www.kaggle.com/rounakbanik/the-movies-dataset/home
+
+The dataset contains information from TMDB and GroupLens. I will be focusing on movie ratings.
+
+## Load packages and data
+
+This project will mainly use two packages, dplyr and ggplot2, to clean and visualize the dataset.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+```
+
+I had to throw in ggrepel too, let's check that out later.
+
+```{r}
+movies <- read.csv('movies_metadata.csv', header = TRUE)
+ratings <- read.csv('ratings_small.csv', header = TRUE)
+movies <- select(movies, id, title, vote_average, vote_count, release_date, revenue, runtime, popularity, genres, budget)
+abbr <- tbl_df(movies)
+ratings <- tbl_df(ratings)
+head(abbr)
+head(ratings)
+dim(abbr)
+dim(ratings)
+```
+
+## Finding out about data
+
+We're mainly interested in the ratings table, but we will use the movies table in order to make more conclusions about ratings by budget, date, runtime, and more.
+
+```{r}
+ratings
+unique(ratings$rating) #what are the different values in this col?
+length(unique(ratings$userId)) #how many users are represented in this subset?
+
+abbr
+ref <- transform(abbr, id = as.integer(id), popularity = as.numeric(popularity), budget = as.numeric(budget))
+arrange(ref, id)
+
+apply(ratings, 2, function(x) any(is.na(x))) #find out if there are any nas
+apply(ref, 2, function(x) any(is.na(x)))
+sum(is.na(ref$vote_count)) #so then how many nas are there
+sum(is.na(ref$runtime))
+
+length(unique(ratings$movieId)) #seems like this table is organized by users voting on movies, there might be movies voted on multiple times
+
+length(unique(ratings$movieId))/nrow(ratings)
+```
+
+So since there are a LOT of duplicates (9066/10004 = 0.09), we will have to deal with the data accordingly. Each movie is voted on an average of 10 times, and with 671 users that means that there is a lot of different movies and some may have a lot of ratings and a lot may have only one.
+
+I'm not quite sure how the popularity column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize and mutate to create a new kind of rating table.
+
+```{r}
+avged <- ratings %>%
+  group_by(movieId) %>%
+  summarize(avg_rating = mean(rating)) %>%
+  print
+```
+
+Perfect. Now we can do a preliminary graph, even though we don't know very much about what kinds of movies there are or even which movies are which.
+
+```{r}
+x <- ggplot(avged, aes(x = avg_rating)) +
+  geom_histogram(binwidth = 0.5, color = "blue", fill = "pink")
+x
+```
+
+This is divided into bins of 0.5 rating, since we kind of made the ratings into a continuous variable by averaging it.
+
+I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together.
+
+```{r}
+final <- merge(avged, ref, by.x = "movieId", by.y = "id", all.x = TRUE)
+head(final, 20)
+```
+
+We take an intermission here to let you randomly select 100 movies to see where they rank, so you can read their titles. I organized their ranking in color so it's easier to parse, and also look at that fancy ggrepel. Sweet. Each time you run this chunk, the 100 movies will be different. It's probably going to be sorrily permanent in knit, though.
+
+```{r, fig.width = 10, fig.height = 12}
+new <- final
+new$random <- runif(9076)
+new$divs <- cut(new$avg_rating, breaks = c(0, 2.5, 3.0, 3.5, 4.0, 4.5, 5))
+n <- ggplot(new[sample.int(9076, 100),], aes(x = avg_rating, y = random, label = title, color = divs)) +
+  geom_point() +
+  geom_label_repel(size = 5)
+n
+```
+
+Let's compare popularity and average rating and see if that had anything to do with each other.
+
+```{r}
+y <- ggplot(final, aes(x = avg_rating, y = popularity)) +
+  geom_jitter()
+y
+
+```
+
+Okay, so it doesn't look like there's much of a correlation between popularity and rating. Also, for some reason, there are a lot of rows with NAs, so those were omitted from the graph. You can also see a lot of movies with assumedly only 1 or 2 ratings averaging out to a perfect multiple of 0.5 rating, so that's why we see those lines up and down at the 0.5 marks for rating.
+
+I'm not quite sure what vote_average means, so let's check that out against avg_rating.
+
+```{r}
+z <- ggplot(final, aes(x = avg_rating, y = vote_average)) +
+  geom_jitter()
+z
+```
+
+Okay, this looks a little more promising. There seems to be a clump towards the middle, with about 3.5 rating and an average of around 6.25. There are apparently a lot of movies with basically 0 vote_average, which makes a line on the bottom.
+
+Still, there is no clear trend, just a centralization of the data. Let's keep going and see if we can find any interesting trends. Let's try revenue.
+
+
+```{r}
+a <- ggplot(final, aes(x = avg_rating, y = revenue)) +
+  geom_jitter()
+a
+```
+
+So maybe not. But surely popularity was somehow calculated based on revenue?
+
+```{r}
+b <- ggplot(final, aes(x = popularity, y = revenue)) +
+  geom_jitter()
+b
+```
+
+You know, if not, then okay, man. I wonder if we can find any interesting correlations at all.
