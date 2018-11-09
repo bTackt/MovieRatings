@@ -2,7 +2,9 @@
 title: "movieRatings"
 author: "A.S."
 date: "November 1, 2018"
-output: html_document
+output:
+  html_document:
+    toc: true
 ---
 
 For Project 2, I will be using The Movies Dataset from Kaggle: https://www.kaggle.com/rounakbanik/the-movies-dataset/home
@@ -58,6 +60,10 @@ length(unique(ratings$movieId))/nrow(ratings)
 
 So since there are a LOT of duplicates (9066/10004 = 0.09), we will have to deal with the data accordingly. Each movie is voted on an average of 10 times, and with 671 users that means that there is a lot of different movies and some may have a lot of ratings and a lot may have only one.
 
+## Modifying Data
+
+### Averaging rating
+
 I'm not quite sure how the popularity column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize to create a new kind of rating table.
 
 ```{r}
@@ -77,6 +83,8 @@ x
 
 This is divided into bins of 0.5 rating, since we kind of made the ratings into a continuous variable by averaging it.
 
+### Merging Movie Metadata and Average Ratings
+
 I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together. Looks pretty cool with all the movieIds lined up.
 
 Just to make sure that we're really only looking at movies that enough people are watching and ratings are not skewed because of too few ratings, let's filter out all movies with 7 or less rating_count. (This is actually very effective and important! We go down from 9076 rows to 2592.)
@@ -87,6 +95,8 @@ head(final, 10)
 final <- filter(final, rating_count > 7)
 head(final, 10)
 ```
+
+## Random 100 Movies Intermission Break
 
 We take an intermission here to let you randomly select 100 movies to see where they rank, so you can read their titles. I organized their ranking in color so it's easier to parse, and also look at that fancy ggrepel. Sweet. Each time you run this chunk, the 100 movies will be different. It's probably going to be sorrily permanent in knit, though.
 
@@ -100,6 +110,8 @@ n <- ggplot(new[sample.int(len, 100),], aes(x = avg_rating, y = random, label = 
   geom_label_repel(size = 5)
 n
 ```
+
+## Searching For A Trend, Some Correlation
 
 Let's compare popularity and average rating and see if that had anything to do with each other.
 
@@ -140,7 +152,11 @@ b <- ggplot(final, aes(x = popularity, y = revenue)) +
 b
 ```
 
-You know, if not, then okay, man. Another problem was that a *lot* of the revenue columns are set to 0 (which I think probably should have been NAs). I wonder if we can find any interesting correlations at all. How about release date? What about just knowing about movies from the 2010s?
+You know, if not, then okay, man. Another problem was that a *lot* of the revenue columns are set to 0 (which I think probably should have been NAs). I wonder if we can find any interesting correlations at all.
+
+## Filtering By Recent Movies
+
+How about release date? What about just knowing about movies from the 2010s?
 
 ```{r}
 recent <- filter(final, release_date > "2010-01-01")
