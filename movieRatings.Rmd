@@ -13,7 +13,7 @@ The dataset contains information from TMDB and GroupLens. I will be focusing on 
 
 ## Load packages and data
 
-This project will mainly use two packages, dplyr and ggplot2, to clean and visualize the dataset.
+This project will mainly use two packages, `dplyr` and `ggplot2`, to clean and visualize the dataset.
 
 ```{r}
 library(dplyr)
@@ -21,7 +21,7 @@ library(ggplot2)
 library(ggrepel)
 ```
 
-I had to throw in ggrepel too, let's check that out later.
+I had to throw in `ggrepel` too, let's check that out later.
 
 ```{r}
 movies <- read.csv('movies_metadata.csv', header = TRUE)
@@ -37,7 +37,7 @@ dim(ratings)
 
 ## Finding out about data
 
-We're mainly interested in the ratings table, but we will use the movies table in order to make more conclusions about ratings by budget, date, runtime, and more.
+We're mainly interested in the `ratings` table, but we will use the `movies` table in order to make more conclusions about ratings by budget, date, runtime, and more.
 
 ```{r}
 ratings
@@ -64,7 +64,7 @@ So since there are a LOT of duplicates (9066/10004 = 0.09), we will have to deal
 
 ### Averaging rating
 
-I'm not quite sure how the popularity column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize to create a new kind of rating table.
+I'm not quite sure how the `popularity` column in the reference table has been calculated, but I want to work with average ratings for movies, not individual ratings. So I will use summarize to create a new kind of rating table.
 
 ```{r}
 avged <- ratings %>%
@@ -85,9 +85,9 @@ This is divided into bins of 0.5 rating, since we kind of made the ratings into 
 
 ### Merging Movie Metadata and Average Ratings
 
-I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together. Looks pretty cool with all the movieIds lined up.
+I want to be able to compare movies based on other attributes, though, so let's put the two dataframes together. Looks pretty cool with all the `movieId`s lined up.
 
-Just to make sure that we're really only looking at movies that enough people are watching and ratings are not skewed because of too few ratings, let's filter out all movies with 7 or less rating_count. (This is actually very effective and important! We go down from 9076 rows to 2592.)
+Just to make sure that we're really only looking at movies that enough people are watching and ratings are not skewed because of too few ratings, let's filter out all movies with 7 or less `rating_count`. (This is actually very effective and important! We go down from 9076 rows to 2592.)
 
 ```{r}
 final <- merge(avged, ref, by.x = "movieId", by.y = "id", all.x = TRUE)
@@ -98,7 +98,7 @@ head(final, 10)
 
 ## Random 100 Movies Intermission Break
 
-We take an intermission here to let you randomly select 100 movies to see where they rank, so you can read their titles. I organized their ranking in color so it's easier to parse, and also look at that fancy ggrepel. Sweet. Each time you run this chunk, the 100 movies will be different. It's probably going to be sorrily permanent in knit, though.
+We take an intermission here to let you randomly select 100 movies to see where they rank, so you can read their `title`s. I organized their ranking in color so it's easier to parse, and also look at that fancy `ggrepel`. Sweet. Each time you run this chunk, the 100 movies will be different. It's probably going to be sorrily permanent in knit, though.
 
 ```{r, fig.width = 10, fig.height = 12}
 new <- final
@@ -113,7 +113,7 @@ n
 
 ## Searching For A Trend, Some Correlation
 
-Let's compare popularity and average rating and see if that had anything to do with each other.
+Let's compare `popularity` and average `rating` and see if that had anything to do with each other.
 
 ```{r}
 y <- ggplot(final, aes(x = avg_rating, y = popularity)) +
@@ -122,9 +122,9 @@ y
 
 ```
 
-Okay, so it doesn't look like there's much of a correlation between popularity and rating. Also, for some reason, there are a few (350) rows with NAs, so those were omitted from the graph.
+Okay, so it doesn't look like there's much of a correlation between `popularity` and `rating`. Also, for some reason, there are a few (350) rows with NAs, so those were omitted from the graph.
 
-I'm not quite sure what vote_average means, so let's check that out against avg_rating.
+I'm not quite sure what `vote_average` means, so let's check that out against `avg_rating`.
 
 ```{r}
 z <- ggplot(final, aes(x = avg_rating, y = vote_average)) +
@@ -132,9 +132,9 @@ z <- ggplot(final, aes(x = avg_rating, y = vote_average)) +
 z
 ```
 
-Okay, this looks a little more promising. There seems to be a clump towards the middle, with about 3.5 rating and an average of around 6.25. There are apparently a lot of movies with a vote_average of 0, presumably because someone didn't enter any data for that movie, which makes a line on the bottom. They probably should have said NA instead.
+Okay, this looks a little more promising. There seems to be a clump towards the middle, with about 3.5 rating and an average of around 6.25. There are apparently a lot of movies with a `vote_average` of 0, presumably because someone didn't enter any data for that movie, which makes a line on the bottom. They probably should have said `NA` instead.
 
-Still, there is no clear trend, just a centralization of the data. Let's keep going and see if we can find any interesting trends. Let's try revenue.
+Still, there is no clear trend, just a centralization of the data. Let's keep going and see if we can find any interesting trends. Let's try `revenue`.
 
 
 ```{r}
@@ -144,7 +144,7 @@ a <- ggplot(final, aes(x = avg_rating, y = revenue)) +
 a
 ```
 
-So maybe not. But surely popularity was somehow calculated based on revenue?
+So maybe not. But surely `popularity` was somehow calculated based on `revenue`?
 
 ```{r}
 b <- ggplot(final, aes(x = popularity, y = revenue)) +
@@ -152,7 +152,7 @@ b <- ggplot(final, aes(x = popularity, y = revenue)) +
 b
 ```
 
-You know, if not, then okay, man. Another problem was that a *lot* of the revenue columns are set to 0 (which I think probably should have been NAs). I wonder if we can find any interesting correlations at all.
+You know, if not, then okay, man. Another problem was that a *lot* of the revenue columns are set to 0 (which I think probably should have been `NA`s). I wonder if we can find any interesting correlations at all.
 
 ## Filtering By Recent Movies
 
